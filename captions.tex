@@ -1,0 +1,59 @@
+\begin{figure*}[hbpt]
+  \centering
+  \includegraphics[width=\textwidth]{figs/figure1.pdf}
+  \caption{%
+  Panels (a) and (b) show side-by-side 3D views of tetrahedral-group ($T$) fundamental-zone grids in $\mathrm{SO}(3)/T$, comparing a baseline cubochoric rejection construction in (a) with a Knothe--Rosenblatt (KR) mapped grid in (b) at matched effective sizes. Points share the same fundamental-zone geometry in homochoric coordinates and are colored by nearest-neighbor chordal spacing measured in the fundamental zone so that dense, well-distributed regions appear uniformly shaded. The rejection grid exhibits anisotropies, clustering and boundary artifacts inherited from sampling and rejection in $\mathrm{SO}(3)$, whereas the KR grid produces a far more uniform spacing, including near the fundamental-zone edges and corners, illustrating the geometric advantage of working directly on $\mathrm{SO}(3)/T$ via KR mappings.%
+  }
+  \label{fig:figure1}
+\end{figure*}
+
+
+\begin{figure*}[hbpt]
+  \centering
+  \includegraphics[width=\textwidth]{figs/figure2.pdf}
+  \caption{%
+  Axial-anisotropy trends for cubochoric KR reference grids before mapping into the fundamental zones. Panel (a) plots the Riesz $E_3$ energy ratio $E_3/E_3^*$ versus the effective grid size $N_{S^3}$, where $E_3^*$ is the conjectured optimum on $S^3$; curves are grouped by the cubochoric semi-edges and show how energy optimality depends on the axial aspect ratio of the underlying lattice. Panel (b) summarizes the best axial ratio setting $\hat r$ as a function of horizontal semi-edge $\mathrm{cu}_{xy}$, with log-quadratic fits overlaid, exposing a smooth trend for the near-optimal $z$-axis scaling that minimizes energy across sizes. Together, (a) and (b) quantify how far from isotropic the cubochoric grids may be at finite resolutions and provide calibrated guidance for choosing nearly optimal aspect ratios in subsequent KR constructions.%
+  }
+  \label{fig:figure2}
+\end{figure*}
+
+
+\begin{figure*}[hbpt]
+  \centering
+  \includegraphics[width=\textwidth]{figs/figure3.pdf}
+  \caption{%
+  Nearest-neighbor disorientation statistics for KR grids versus cubochoric rejection grids across all Laue groups. Panel (a) overlays cumulative distribution functions for witness-to-grid nearest-neighbor disorientation angles, comparing how quickly randomly sampled orientations on $\mathrm{SO}(3)/K$ find close neighbors in each grid type; curves closer to the origin indicate better coverage and smaller worst-case error. Panel (b) repeats the comparison for within-grid self-nearest-neighbor disorientations, directly probing the internal spacing regularity of each grid by examining the distribution of inter-point distances. Across both (a) and (b), KR grids yield CDFs that are tighter and more symmetric, with fewer outliers in the tails, demonstrating both improved coverage of the quotient space and more uniform local spacing relative to rejection-based constructions.%
+  }
+  \label{fig:figure3}
+\end{figure*}
+
+
+\begin{figure*}[hbpt]
+  \centering
+  \includegraphics[width=\textwidth]{figs/figure4.pdf}
+  \caption{%
+  Energy and covering-radius scaling of KR grids compared to several baselines as the effective resolution $N_{S^3}$ increases. Panels (a)--(c) report, as functions of $N_{S^3}$, the ratios $E_1/E_1^*$, $E_2/E_2^*$ and $E_3/E_3^*$ of Riesz energies to their conjectured optima on $S^3$, while panel (d) shows the normalized covering radius $\theta_{\mathrm{cov}}/\theta^*$. Each curve family contains one KR curve per Laue group, alongside cubochoric rejection and Fibonacci-sphere reference curves, allowing direct comparison across symmetry groups and constructions. Dashed overlays highlight the special role of the FCC-based KR constructions for $T$, $O$ and $I$, which track or outperform the best baselines simultaneously in energy and covering radius. Overall, the four panels demonstrate that KR grids attain near-optimal qualitative behavior across multiple discrepancy metrics while preserving a structured, group-compatible construction whose advantages sharpen at high resolutions.%
+  }
+  \label{fig:figure4}
+\end{figure*}
+
+
+\begin{figure*}[hbpt]
+  \centering
+  \includegraphics[width=\textwidth]{figs/figure5.pdf}
+  \caption{%
+  Thomson-relaxation trajectories for the octahedral group $O$ under several different initializations. Panel (a) plots the evolution of the Riesz $E_3$ energy ratio $E_3/E_3^*$ against iteration count, and panel (b) shows the corresponding covering radius in degrees, with separate curves for KR grids initialized from FCC and primitive-cubic cubochoric lattices, a cubochoric rejection grid, and a random configuration. Each trajectory illustrates how quickly and how far the configuration relaxes toward a low-energy, well-spaced state, revealing that KR-based initializations begin much closer to the Thomson optimum and require fewer steps to reach a plateau compared with rejection or random starts. The figure confirms that the structural advantages of KR grids translate into practical benefits for downstream optimization workflows that operate directly on orientation sets.%
+  }
+  \label{fig:figure5}
+\end{figure*}
+
+
+\begin{figure*}[hbpt]
+  \centering
+  \includegraphics[width=\textwidth]{figs/figure6.pdf}
+  \caption{%
+  Symmetry-extended KR grid on $\mathrm{SO}(3)$ generated from an octahedral-group fundamental-zone grid. A single KR grid in the octahedral fundamental zone is first constructed in homochoric coordinates and then replicated by all $24$ elements of the symmetry group $O$, producing multiple colored copies that together fill the homochoric ball while preserving uniform density. Point colors encode the symmetry-operator index, so that each copy of the fundamental-zone grid is visually distinguishable and the tiling action of the group is apparent both in the still image and in the accompanying stereoscopic animation. This construction illustrates how KR grids on $\mathrm{SO}(3)/O$ can be lifted in a structured way to uniform, symmetry-compatible grids on the full rotation group $\mathrm{SO}(3)$, providing a flexible starting point for sampling and integration tasks on $\mathrm{SO}(3)$.%
+  }
+  \label{fig:figure6}
+\end{figure*}
+
