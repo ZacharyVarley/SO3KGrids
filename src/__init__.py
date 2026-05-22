@@ -1,0 +1,1 @@
+"""Core numerical routines for grid construction, symmetry, and metrics."""

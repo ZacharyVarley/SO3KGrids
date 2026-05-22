@@ -7,7 +7,6 @@ into the canonical crystallography frame (top 5-fold at +z; ψ=0 along +x).
 - Assumes `orientation_ops.cu2ho` is importable.
 - Derives the canonical post-rotation *dynamically* from the neutral icosahedron,
   matching your dodecahedron construction (no guessing).
-- Saves a Plotly HTML (no fig.show()).
 """
 
 import math
@@ -23,11 +22,7 @@ if str(_root) not in sys.path:
 
 import numpy as np
 import torch
-from orientation_ops import cu2ho, ho2qu
-import plotly.graph_objects as go
-
-from laue_ops import laue_elements
-from riesz_energy import riesz_energies_fused
+from src.orientation_ops import cu2ho
 
 # ------------------------- Numeric/geom constants -------------------------
 DTYPE = torch.float64
@@ -501,210 +496,17 @@ def ho2ho_I(h: torch.Tensor, *, eps: float = EPS) -> torch.Tensor:
     return ho
 
 
-# # ------------------------- CLI demo (saves HTML) -------------------------
-# def main():
-#     ap = argparse.ArgumentParser(description="I(532) — cu2ho → KR(FZ) → post-rotate to canonical pose (saves Plotly HTML)")
-#     ap.add_argument("--h", type=int, default=21, help="half-resolution in x/y (2h cells per axis)")
-#     ap.add_argument("--z", type=int, default=21, help="half-resolution in z (2z cells)")
-#     ap.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"])
-#     ap.add_argument("--out", type=str, default="ho2ho_I_postrot_demo.html", help="output HTML filename")
-#     args = ap.parse_args()
-
-#     device = torch.device("cuda" if (args.device == "auto" and torch.cuda.is_available()) else args.device)
-#     torch.set_grad_enabled(False)
-
-#     # 1) Build stretched cubochoric grid → homochoric source points
-#     cu_grid = so3_cubochoric_grid_stretch(args.h, args.z, device=device, dtype=DTYPE)
-#     ho_src = cu2ho(cu_grid.to(dtype=DTYPE, device=device))
-
-#     # retract the homochoric vector from the boundary of the FZ
-#     ho_src = ho_src * 0.99999
-
-#     # 2) Map to RFZ (neutral frame)
-#     ho_map_neutral = ho2ho_I_neutral(ho_src)
-
-#     # 3) Compute the canonical post-rotation dynamically
-#     R_np = compute_canonical_rotation_from_neutral_axes()        # (3,3) numpy
-#     Rg = torch.tensor(R_np, dtype=DTYPE, device=device)          # torch, on user's device
-
-#     # 4) Post-rotate into canonical pose
-#     ho_map = ho_map_neutral @ Rg.t()
-
-#     # # 5) Save Plotly HTML
-#     # fig = go.Figure()
-#     # fig.add_trace(go.Scatter3d(
-#     #     x=ho_src[:, 0].detach().cpu().numpy(),
-#     #     y=ho_src[:, 1].detach().cpu().numpy(),
-#     #     z=ho_src[:, 2].detach().cpu().numpy(),
-#     #     mode='markers',
-#     #     name='Original (cu→ho)',
-#     #     marker=dict(size=2)
-#     # ))
-#     # fig.add_trace(go.Scatter3d(
-#     #     x=ho_map[:, 0].detach().cpu().numpy(),
-#     #     y=ho_map[:, 1].detach().cpu().numpy(),
-#     #     z=ho_map[:, 2].detach().cpu().numpy(),
-#     #     mode='markers',
-#     #     name='Mapped (I KR → RFZ) + post-rotate to canonical',
-#     #     marker=dict(size=2)
-#     # ))
-#     # lim = float(H_MAX)
-#     # fig.update_layout(
-#     #     title='I (532) homochoric KR map — post-rotated to canonical RFZ (top 5-fold at +z, ψ=0 along +x)',
-#     #     scene=dict(
-#     #         xaxis=dict(range=[-lim, lim], title='x'),
-#     #         yaxis=dict(range=[-lim, lim], title='y'),
-#     #         zaxis=dict(range=[-lim, lim], title='z'),
-#     #         aspectmode='cube'
-#     #     ),
-#     #     legend=dict(x=0.02, y=0.98),
-#     #     margin=dict(l=0, r=0, t=36, b=0),
-#     #     template='plotly_white'
-#     # )
-#     # fig.write_html(args.out, include_plotlyjs="cdn")
-#     # print(f"[ok] wrote {args.out} with {ho_src.shape[0]} points")
-
-#     # -------- Color by E3 (Riesz s=3) using ho2qu + laue_elements --------
-
-#     # 1) Homochoric → quaternion (unit) using your implementation
-#     q_fz = ho2qu(ho_map.to(dtype=DTYPE, device=device))        # (N,4)
-
-#     # normalize just in case
-#     q_fz = q_fz / torch.clamp(q_fz.norm(dim=-1, keepdim=True), min=1e-15)
-
-#     # 2) Get Laue ops for Icosahedral (532); identity is first by contract
-#     ops = laue_elements(12).to(dtype=DTYPE, device=device)     # (G,4) unit quats
-
-#     # 3) Riesz energies — get per-point E3 contributions
-#     E1, E2, E3, _, _, S3_i, NN_i = riesz_energies_fused(q_fz, ops, return_contrib=True, return_nn=True)
-
-#     # # 4) Min–max normalize S3_i → [0,1] for coloring
-#     # s3 = S3_i.detach()
-#     # s3 = s3 - s3.min()
-#     # s3 = s3 / torch.clamp(s3.max(), min=1e-15)
-#     # s3_np = s3.cpu().numpy()
-
-#     # print out the min and median of the NN_i
-#     print(f" Min NN: {NN_i.min().item()}")
-#     print(f" Median NN: {np.median(NN_i.cpu().numpy())}")
-#     print(f" Max NN: {NN_i.max().item()}")
-
-#     # ratio to the median
-#     s3_np = S3_i.detach().cpu().numpy()
-#     s3_np = s3_np / np.median(s3_np)
-#     s3_np = s3_np.astype(np.float32)
-
-
-#     # # 5) Save Plotly HTML — color by E3 contribution, opacity 1.0
-#     # fig = go.Figure()
-#     # fig.add_trace(go.Scatter3d(
-#     #     x=ho_src[:, 0].detach().cpu().numpy(),
-#     #     y=ho_src[:, 1].detach().cpu().numpy(),
-#     #     z=ho_src[:, 2].detach().cpu().numpy(),
-#     #     mode='markers',
-#     #     name='Original (cu→ho)',
-#     #     marker=dict(size=3, opacity=1.0)
-#     # ))
-#     # fig.add_trace(go.Scatter3d(
-#     #     x=ho_map[:, 0].detach().cpu().numpy(),
-#     #     y=ho_map[:, 1].detach().cpu().numpy(),
-#     #     z=ho_map[:, 2].detach().cpu().numpy(),
-#     #     mode='markers',
-#     #     name='Mapped (colored by E3 contrib)',
-#     #     marker=dict(size=4, color=s3_np, colorscale='Turbo', showscale=True, opacity=1.0)
-#     # ))
-#     # lim = float(H_MAX)
-#     # fig.update_layout(
-#     #     title=f'I (532) homochoric KR map — RFZ colored by Riesz E3 contribution (E3 total = {E3:.6e})',
-#     #     scene=dict(
-#     #         xaxis=dict(range=[-lim, lim], title='x'),
-#     #         yaxis=dict(range=[-lim, lim], title='y'),
-#     #         zaxis=dict(range=[-lim, lim], title='z'),
-#     #         aspectmode='cube'
-#     #     ),
-#     #     legend=dict(x=0.02, y=0.98),
-#     #     margin=dict(l=0, r=0, t=36, b=0),
-#     #     template='plotly_white'
-#     # )
-#     # fig.write_html(args.out, include_plotlyjs="cdn")
-#     # print(f"[ok] wrote {args.out} with {ho_src.shape[0]} points; E3 = {E3:.6e}")
-
-#     # plot by median(NN_i) over NN_i
-#     NN_i_np = NN_i.detach().cpu().numpy()
-#     NN_i_np = NN_i_np / np.median(NN_i_np)
-#     NN_i_np = NN_i_np.astype(np.float32)
-#     fig = go.Figure()
-#     fig.add_trace(go.Scatter3d(
-#         x=ho_src[:, 0].detach().cpu().numpy(),
-#         y=ho_src[:, 1].detach().cpu().numpy(),
-#         z=ho_src[:, 2].detach().cpu().numpy(),
-#     ))
-#     fig.add_trace(go.Scatter3d(
-#         x=ho_map[:, 0].detach().cpu().numpy(),
-#         y=ho_map[:, 1].detach().cpu().numpy(),
-#         z=ho_map[:, 2].detach().cpu().numpy(),
-#         mode='markers',
-#         name='Mapped (colored by NN)',
-#         marker=dict(size=4, color=NN_i_np, colorscale='Turbo', showscale=True, opacity=1.0)
-#     ))
-#     fig.write_html(args.out, include_plotlyjs="cdn")
-#     print(f"[ok] wrote {args.out} with {ho_src.shape[0]} points; NN = {np.median(NN_i.cpu().numpy()):.6e}")
-
-
-# if __name__ == "__main__":
-#     main()
-
-
-# ---------- discrete palette for up to 60 ops ----------
-def palette60():
-    # 10 pleasant hues × 6 cycles (60 colors total)
-    base = [
-        "#1f77b4",
-        "#ff7f0e",
-        "#2ca02c",
-        "#d62728",
-        "#9467bd",
-        "#8c564b",
-        "#e377c2",
-        "#7f7f7f",
-        "#bcbd22",
-        "#17becf",
-    ]
-    pal = []
-    for k in range(6):
-        # slightly darken per cycle
-        f = 1.0 - 0.08 * k
-        for c in base:
-            r = int(int(c[1:3], 16) * f)
-            g = int(int(c[3:5], 16) * f)
-            b = int(int(c[5:7], 16) * f)
-            pal.append(f"#{r:02x}{g:02x}{b:02x}")
-    return pal[:60]
-
-
-# ------------------------- CLI demo (saves HTML) -------------------------
+# ------------------------- CLI summary -------------------------
 def main():
     ap = argparse.ArgumentParser(
-        description="I(532) — cu2ho → KR(FZ) → apply all Laue ops, remap to RFZ, color by op index"
+        description="I(532) — cu2ho → KR(FZ, canonical) with ψ'(u) fit; prints mapping and energy summary"
     )
     ap.add_argument(
-        "--h", type=int, default=7, help="half-resolution in x/y (2h cells per axis)"
+        "--h", type=int, default=11, help="half-resolution in x/y (2h cells per axis)"
     )
-    ap.add_argument("--z", type=int, default=7, help="half-resolution in z (2z cells)")
+    ap.add_argument("--z", type=int, default=11, help="half-resolution in z (2z cells)")
     ap.add_argument(
         "--device", type=str, default="auto", choices=["auto", "cpu", "cuda"]
-    )
-    ap.add_argument(
-        "--out",
-        type=str,
-        default="figures/ho2ho_I_ops_colored.html",
-        help="output HTML filename",
-    )
-    ap.add_argument(
-        "--downsample",
-        type=int,
-        default=0,
-        help="plot at most this many points per op (0 = no downsample)",
     )
     args = ap.parse_args()
 
@@ -713,88 +515,11 @@ def main():
     )
     torch.set_grad_enabled(False)
 
-    # 1) Build stretched cubochoric grid → homochoric (source)
     cu_grid = so3_cubochoric_grid_stretch(args.h, args.z, device=device, dtype=DTYPE)
-    ho_src = cu2ho(cu_grid.to(dtype=DTYPE, device=device))
+    ho_src = cu2ho(cu_grid.to(dtype=DTYPE, device=device)) * 0.99999
+    ho_map = ho2ho_I(ho_src)
 
-    # 2) Map ONCE to canonical RFZ (this is your base FZ set)
-    ho_fz = ho2ho_I(ho_src)  # uses your ho2ho_I defined above
-
-    # 3) Convert to unit quaternions
-    q_fz = ho2qu(ho_fz.to(dtype=DTYPE, device=device))
-    q_fz = q_fz / torch.clamp(q_fz.norm(dim=-1, keepdim=True), min=1e-15)
-
-    # 4) Load Laue ops for Icosahedral (532). Identity should be ops[0] by contract.
-    ops = laue_elements(12).to(dtype=DTYPE, device=device)  # (G,4) unit quats
-    G = ops.shape[0]
-    print(f"[info] Loaded {G} Laue operators")
-
-    # 5) Prepare Plotly fig and base cloud (optional)
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_fz[:, 0].detach().cpu().numpy(),
-            y=ho_fz[:, 1].detach().cpu().numpy(),
-            z=ho_fz[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="RFZ base (op 0)",
-            marker=dict(size=2, color="#000000", opacity=0.35),
-        )
-    )
-
-    # 6) For each operator: q' = g ⊗ q_fz (left action), then back to ho and re-fold to RFZ
-    from orientation_ops import qu_prod, qu2ho  # ensure import is here
-
-    colors = palette60()
-    max_plot = args.downsample if args.downsample and args.downsample > 0 else None
-
-    for gi in range(G):
-        g = ops[gi].unsqueeze(0).expand_as(q_fz)  # (N,4)
-        # Depending on your convention, left action is typically correct: g ⊗ q
-        q_prime = qu_prod(g, q_fz)  # (N,4)
-        q_prime = q_prime / torch.clamp(q_prime.norm(dim=-1, keepdim=True), min=1e-15)
-
-        # Back to homochoric, then map to canonical RFZ again to visualize where this op lands
-        ho_prime = qu2ho(q_prime)  # (N,3), anywhere in ball
-        # ho_prime = ho2ho_I(ho_prime)           # (N,3), folded to canonical RFZ
-
-        # Optional downsample for large N
-        if max_plot is not None and ho_prime.shape[0] > max_plot:
-            idx = torch.randint(
-                0, ho_prime.shape[0], (max_plot,), device=ho_prime.device
-            )
-            xyz = ho_prime[idx].detach().cpu().numpy()
-        else:
-            xyz = ho_prime.detach().cpu().numpy()
-
-        fig.add_trace(
-            go.Scatter3d(
-                x=xyz[:, 0],
-                y=xyz[:, 1],
-                z=xyz[:, 2],
-                mode="markers",
-                name=f"op {gi:02d}",
-                marker=dict(size=2, color=colors[gi % len(colors)], opacity=1.0),
-            )
-        )
-
-    lim = float(H_MAX)
-    fig.update_layout(
-        title="I (532) — RFZ copies under all Laue ops (colored by op index)",
-        scene=dict(
-            xaxis=dict(range=[-lim, lim], title="x"),
-            yaxis=dict(range=[-lim, lim], title="y"),
-            zaxis=dict(range=[-lim, lim], title="z"),
-            aspectmode="cube",
-        ),
-        legend=dict(font=dict(size=10), x=0.02, y=0.98, itemsizing="constant"),
-        margin=dict(l=0, r=0, t=36, b=0),
-        template="plotly_white",
-    )
-    fig.write_html(args.out, include_plotlyjs="cdn")
-    print(
-        f"[ok] wrote {args.out} with {ho_fz.shape[0]} base points and {G} colored symmetry copies"
-    )
+    print(f"[ok] mapped {ho_map.shape[0]} points into the canonical RFZ")
 
 
 if __name__ == "__main__":

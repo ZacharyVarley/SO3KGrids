@@ -1,25 +1,19 @@
 # IUCR panel exports
 
-Scripts here produce **submission-ready figures** with content-based file names (see `stems.py`). Split panels omit `(a)` / `(b)` letters; combined 3D figures omit panel letters too (add them in LaTeX if needed).
+`python -m iucr.export_panels` produces the maintained submission set with ordered, content-descriptive stems from `iucr/stems.py`.
 
 ## Requirements
 
-- Existing data files only for curves/CDFs (nothing recomputed):
-  - `figure2_data.json`
-  - `figure3_data_witness_col.npz`, `figure3_data_self_nn_col.npz`
-  - `figure4_data.npz`
-  - `figure5_data.npz`
-- Figure 1 builds one matched rejection/KR dataset on the fly (needs **pykeops**; same as `figure1_col.py`).
-- Figure 6 builds matched primitive/FCC KR grids on the fly (same as `figure6.py`).
-- Saved layout JSON from the interactive tools:
-  - `figure1_col_settings.json`
-  - `figure2_col_settings.json`
-  - `figure3_col_settings.json` (under a `"view"` key)
-  - `figure4_col_settings.json`
-  - `figure5_col_settings.json`
-  - `figure6_settings.json`
-- LaTeX on `PATH` (figures use `text.usetex`)
-- Poppler **`pdftops`** on `PATH` for EPS (`conda install -c conda-forge poppler` or `apt install poppler-utils`)
+- Cached inputs already present in the release tree:
+  - `figures/data/figure2_anisotropy.json`
+  - `figures/data/figure3_witness_nn.npz`, `figures/data/figure3_self_nn.npz`
+  - `figures/data/figure4_grid_methods.npz`
+  - `figures/data/figure5_thomson_relaxation.npz`
+- Layout JSON in `figures/settings/`
+- LaTeX on `PATH` (`text.usetex=True`)
+- Poppler `pdftops` on `PATH` for EPS conversion
+- Figure 1 uses `figures.so3t_rejection_vs_kr` and benefits from a working `pykeops` install
+- Figure 6 uses `figures.laue_o_pc_vs_fcc` and is built directly from code
 
 ## Run
 
@@ -29,53 +23,51 @@ From the repository root:
 python -m iucr.export_panels
 ```
 
-Optional: `--only 1 4 6` or `--out-dir /path/to/output`. Numbers map to content groups:
+Optional: `--only 1 4 6` or `--out-dir /path/to/output`.
 
 | `--only` | Content |
-|----------|---------|
-| 1 | SO(3)/T rejection vs KR (combined) |
-| 2 | $E_3/E_3^*$ and $\mathrm{cu}_z^*$ panels |
-| 3 | Witness and self NN CDFs |
-| 4 | Grid-method $E_3$, CR, legend, stacked reference |
-| 5 | Thomson $E_3$ and covering radius vs iteration |
-| 6 | Laue O primitive vs FCC KR (full-width 2×3) |
+|---|---|
+| `1` | SO(3)/T rejection vs KR |
+| `2` | Cubochoric anisotropy panels |
+| `3` | Witness and self-NN CDFs |
+| `4` | Grid-method comparison panels |
+| `5` | Thomson relaxation panels |
+| `6` | Laue O primitive-vs-FCC KR panel |
 
-**Preserved from JSON:** axis ranges, log scales, series visibility, arrows, fits, figure-2 cu_z options, figure-5 `plot_cr_ratio`, figure-4 legend layout, 3D views for figures 1 and 6.
+The exporter preserves axis limits, log scales, legend placement, annotations, and 3D views from `figures/settings/*.json`.
 
-**Standardized for submission** ([IUCr artwork guide](https://journals.iucr.org/j/services/help/artwork/guide.html)):
+## Submission standard
 
-- Single-column width **88.5 mm** for 2D panels
-- Full-page width **171 mm** for `01_so3t_rejection_vs_kr_fz` (side-by-side, like `figure1.py`) and `12_laue_o_pc_vs_fcc_kr_grids`, with **~2.5 mm** label typography at native width
-- PNG at **600 d.p.i.**, plus **EPS** (vector, PDF→Poppler) and PDF (usetex)
-- Line weights **1.0 pt** (0.35–1.5 pt band); 2D markers **4 pt**
-- Font sizes in the **1.5–3 mm** band at column width
-- Figure 4: Fibonacci curves subsampled to match other series marker density
+- Single-column width: **88.5 mm**
+- Full-page width: **171 mm** for the two 3D combined panels
+- PNG: **600 d.p.i.**
+- EPS: vector, generated from the TeX PDF via `pdftops -eps`
+- PDF: TeX-rendered reference output
+- Line and text sizes constrained to the IUCr artwork guide
 
-## Output
+## Output stems
 
-Default directory: `iucr_panels/`
-
-Each stem is saved as `.png`, `.eps`, and `.pdf`. Names are **ordered by prefix** (`01_` … `12_`) and describe content, not journal figure numbers:
+Default output directory: `iucr_panels/`
 
 | Stem | Content |
-|------|---------|
-| `01_so3t_rejection_vs_kr_fz` | SO(3)/T: rejection vs KR in the FZ (side-by-side, full page) |
-| `02_e3_ratio_vs_ns3` | $E_3/E_3^*$ vs $N_{S^3}$ (cubochoric anisotropy) |
+|---|---|
+| `01_so3t_rejection_vs_kr_fz` | SO(3)/T rejection vs KR |
+| `02_e3_ratio_vs_ns3` | $E_3/E_3^*$ vs $N_{S^3}$ |
 | `03_cuz_star_vs_cuxy` | $\mathrm{cu}_z^*$ vs $\mathrm{cu}_{xy}$ |
 | `04_witness_nn_cdf` | Witness-set NN CDF |
 | `05_self_nn_cdf` | Self-NN CDF |
-| `06_e3_ratio_grid_methods` | $E_3/E_3^*$ vs $N_{S^3}$ (grid methods) |
-| `07_cr_ratio_grid_methods` | Covering-radius ratio vs $N_{S^3}$ |
-| `08_grid_methods_legend` | Shared 4-column legend |
-| `09_grid_methods_stacked` | E3 + CR + legend stacked (layout reference) |
+| `06_e3_ratio_grid_methods` | Grid-method $E_3/E_3^*$ |
+| `07_cr_ratio_grid_methods` | Grid-method covering-radius ratio |
+| `08_grid_methods_legend` | Shared legend |
+| `09_grid_methods_stacked` | Stacked reference export |
 | `10_thomson_e3_ratio_vs_iter` | Thomson $E_3/E_3^*$ vs iteration |
 | `11_covering_radius_vs_iter` | Covering radius vs iteration |
-| `12_laue_o_pc_vs_fcc_kr_grids` | Laue O: primitive vs FCC KR (CU / HO / FZ), full page |
+| `12_laue_o_pc_vs_fcc_kr_grids` | Laue O primitive vs FCC KR |
 
-### EPS vs PDF
+## EPS note
 
-Matplotlib rasterizes direct EPS when `text.usetex=True`. Submission EPS is built from the usetex **PDF** via `pdftops -eps`. Check `head -3 file.eps` for `poppler pdftops` and `PDF Creator: Matplotlib`.
+The EPS files are true vector exports produced from the TeX PDF through Poppler. They are intentionally verbose PostScript, but not raster wrappers.
 
 ## Typography
 
-Adjust defaults in `figure_ui_common.iucr_font_sizes()` or tune interactively then re-export. Stacked/combined layouts in the repo root still use `figure*_manual.py` / `figure*_col.py`.
+Adjust shared IUCr typography defaults in `figures/common.py`, or tune the saved layouts in `figures/settings/` and rerun the exporter.

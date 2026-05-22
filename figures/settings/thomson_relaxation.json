@@ -1,0 +1,24 @@
+{
+  "label_size": 7.5,
+  "tick_size": 6.5,
+  "legend_size": 7.0,
+  "line_lw": 2.0,
+  "show_legend_b": true,
+  "plot_cr_ratio": true,
+  "show_grid": true,
+  "grid_alpha": 0.6,
+  "xlog": {
+    "E3": false,
+    "CR": false
+  },
+  "ylog": {
+    "E3": false,
+    "CR": false
+  },
+  "show_theta_star": false,
+  "show": {
+    "O_rej": true,
+    "O_KR_PC": true,
+    "O_KR_FCC": true
+  }
+}

@@ -22,12 +22,11 @@ Fit details (hardcoded below):
 - sup_error ≈ 1.22e−15, rms_error ≈ 3.44e−16
 """
 
-import math
 import argparse
-from typing import Tuple
-
+import math
 import sys
 from pathlib import Path
+from typing import Tuple
 
 _root = Path(__file__).resolve().parent.parent
 if str(_root) not in sys.path:
@@ -35,11 +34,9 @@ if str(_root) not in sys.path:
 
 import numpy as np
 import torch
-from orientation_ops import cu2ho, ho2qu, qu_prod, qu2ho
-import plotly.graph_objects as go
 
-from laue_ops import laue_elements
-from riesz_energy import riesz_energies_fused
+from src.orientation_ops import cu2ho, ho2qu
+
 
 # ------------------------- Numeric/geom constants -------------------------
 DTYPE = torch.float64
@@ -55,12 +52,12 @@ PHI = 0.5 * (1.0 + SQRT5)
 
 # Wedge widths for azimuth folding
 WEDGE_72 = 2.0 * PI / 5.0
-WEDGE_36 = WEDGE_72 / 2.0  # π/5 = 36°
+WEDGE_36 = WEDGE_72 / 2.0
 
 # KR constants for I
-ALPHA = math.sqrt(5.0 - 2.0 * SQRT5)  # tan(18°)
-P_CONST = math.sqrt(5.0 + 2.0 * SQRT5)  # cot(18°)
-COS_BETA = 1.0 / math.sqrt(5.0)  # adjacent 5-fold axis angle
+ALPHA = math.sqrt(5.0 - 2.0 * SQRT5)
+P_CONST = math.sqrt(5.0 + 2.0 * SQRT5)
+COS_BETA = 1.0 / math.sqrt(5.0)
 SIN_BETA = 2.0 / math.sqrt(5.0)
 
 
@@ -163,10 +160,10 @@ def compute_canonical_rotation_from_neutral_axes() -> np.ndarray:
         ],
         dtype=float,
     )
-    N = V / np.linalg.norm(V, axis=1, keepdims=True)  # (12,3)
+    N = V / np.linalg.norm(V, axis=1, keepdims=True)
 
     rt5 = math.sqrt(5.0)
-    r_face = math.sqrt(41.0 - 18.0 * rt5)  # matches user's script
+    r_face = math.sqrt(41.0 - 18.0 * rt5)
     DodeV = np.array(
         [_intersect_three_planes(N[a], -N[b], N[c], r_face) for (a, b, c) in _I_FACES]
     )
@@ -202,7 +199,6 @@ def compute_canonical_rotation_from_neutral_axes() -> np.ndarray:
 
     top_idx = int(np.argmax(N[:, 2]))
     R1 = _rotation_from_a_to_b(N[top_idx], np.array([0.0, 0.0, 1.0]))
-    N1 = (R1 @ N.T).T
     D1 = (R1 @ DodeV.T).T
 
     top_verts_idx = faces[top_idx]
@@ -211,7 +207,7 @@ def compute_canonical_rotation_from_neutral_axes() -> np.ndarray:
     theta = math.atan2(v_pick[1], v_pick[0])
     cT, sT = math.cos(-theta), math.sin(-theta)
     Rz = np.array([[cT, -sT, 0.0], [sT, cT, 0.0], [0.0, 0.0, 1.0]])
-    R = Rz @ R1  # neutral → canonical
+    R = Rz @ R1
     return R
 
 
@@ -295,10 +291,7 @@ def F_cap(theta: torch.Tensor) -> torch.Tensor:
     )
 
 
-# (kept for polar solve) — A_of_psi is implicit via θ_max and F_cap
-
 # ------------------------- Hardcoded Chebyshev ψ'(u) fit -------------------------
-# Chebyshev coefficients a[k] for P(t) = Σ a[k] T_k(t), t = 2u - 1, degree 17; denominator Q(t)=1
 CHEB_NUM = torch.tensor(
     [
         0.3304924856175057,
@@ -328,28 +321,18 @@ PSI_MAX = torch.tensor(math.pi / 5.0, dtype=DTYPE)
 
 @torch.no_grad()
 def chebyshev_clenshaw(coeffs: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-    """
-    Clenshaw evaluation for Chebyshev T basis; coeffs on the last dim or 1-D.
-    Works with arbitrary leading shapes via broadcasting on t.
-    """
-    # Expect coeffs flat (degree+1,)
     if coeffs.numel() == 1:
         return torch.full_like(t, coeffs[0])
     b1 = torch.zeros_like(t)
     b2 = torch.zeros_like(t)
-    # iterate from highest to T_1
     for c_k in coeffs[1:].flip(0):
         b0 = 2.0 * t * b1 - b2 + c_k
         b2, b1 = b1, b0
-    # final combine with T_0
     return t * b1 - b2 + coeffs[0]
 
 
 @torch.no_grad()
 def psi_prime_from_u(u: torch.Tensor) -> torch.Tensor:
-    """
-    Evaluate ψ'(u) from hardcoded Chebyshev fit on t = 2u - 1.
-    """
     u = torch.clamp(u, 0.0, 1.0)
     t = 2.0 * u - 1.0
     psi = chebyshev_clenshaw(CHEB_NUM.to(device=u.device, dtype=u.dtype), t)
@@ -382,13 +365,13 @@ def ho2ho_I_neutral(h: torch.Tensor, *, eps: float = EPS) -> torch.Tensor:
     uhat = torch.zeros_like(h)
     uhat[nonzero] = h[nonzero] / rho[nonzero].unsqueeze(-1)
 
-    A = icosahedron_axes(device=device, dtype=dtype)  # (12,3)
-    dots = torch.einsum("nd,md->nm", uhat, A)  # (N,12)
-    idx_face = dots.argmax(dim=-1)  # (N,)
-    a = A[idx_face]  # (N,3)
+    A = icosahedron_axes(device=device, dtype=dtype)
+    dots = torch.einsum("nd,md->nm", uhat, A)
+    idx_face = dots.argmax(dim=-1)
+    a = A[idx_face]
 
-    nb_of = build_neighbor_indices(A)  # (12,)
-    b = A[nb_of[idx_face]]  # (N,3)
+    nb_of = build_neighbor_indices(A)
+    b = A[nb_of[idx_face]]
 
     R_al = align_to_z(a)
     h_loc = torch.einsum("nij,nj->ni", R_al, h)
@@ -405,14 +388,10 @@ def ho2ho_I_neutral(h: torch.Tensor, *, eps: float = EPS) -> torch.Tensor:
     psi = torch.atan2(h_loc[:, 1], h_loc[:, 0])
     psi = torch.remainder(psi, 2.0 * PI)
 
-    # Fold to canonical 36° wedge and compute u
     psi_delta, mirror, sector_idx = fold_azimuth(psi)
     u = psi_delta / WEDGE_36
-
-    # HARD-CODED FIT: ψ' = ψ'(u)
     psi_prime = psi_prime_from_u(u)
 
-    # Ceiling θ_max(ψ') and constant-Jacobian polar solve
     th_ceiling = theta_max(psi_prime)
     y_src = (1.0 - torch.cos(theta)) / (1.0 - torch.cos(th_ceiling))
     y_src = torch.clamp(y_src, 0.0, 1.0)
@@ -421,13 +400,12 @@ def ho2ho_I_neutral(h: torch.Tensor, *, eps: float = EPS) -> torch.Tensor:
         lo = torch.zeros_like(y)
         hi = th_max.clone()
         denom = torch.clamp(F_cap(th_max), min=EPS)
-        for bisect_iter in range(100):
+        for _ in range(100):
             mid = 0.5 * (lo + hi)
             val = F_cap(mid) / denom - y
             hi = torch.where(val > 0, mid, hi)
             lo = torch.where(val <= 0, mid, lo)
             if (hi - lo).max() < 1e-14:
-                # print(f"Bisection converged in {bisect_iter + 1} iterations")
                 break
         return 0.5 * (lo + hi)
 
@@ -435,7 +413,6 @@ def ho2ho_I_neutral(h: torch.Tensor, *, eps: float = EPS) -> torch.Tensor:
 
     R3 = R3_of_theta(theta_prime)
     R_cap = torch.clamp(R3, min=0.0) ** (1.0 / 3.0)
-    # slight retract to avoid boundary self-intersection at the FZ shell
     rho_prime = (1.0 - 1e-6) * rho_loc * (R_cap / H_MAX)
 
     psi_full = unfold_azimuth(psi_prime, mirror, sector_idx)
@@ -491,41 +468,18 @@ def so3_cubochoric_grid_stretch(
 def ho2ho_I(h: torch.Tensor, *, eps: float = EPS) -> torch.Tensor:
     device, dtype = h.device, h.dtype
     ho_neutral = ho2ho_I_neutral(h, eps=eps)
-    R_np = compute_canonical_rotation_from_neutral_axes()  # (3,3) numpy
-    Rg = torch.tensor(R_np, dtype=dtype, device=device)  # torch, on device
+    R_np = compute_canonical_rotation_from_neutral_axes()
+    Rg = torch.tensor(R_np, dtype=dtype, device=device)
     ho = (ho_neutral @ Rg.t()).to(dtype=dtype, device=device)
     return ho
 
 
-# ---------- discrete palette for up to 60 ops ----------
-def palette60():
-    base = [
-        "#1f77b4",
-        "#ff7f0e",
-        "#2ca02c",
-        "#d62728",
-        "#9467bd",
-        "#8c564b",
-        "#e377c2",
-        "#7f7f7f",
-        "#bcbd22",
-        "#17becf",
-    ]
-    pal = []
-    for k in range(6):
-        f = 1.0 - 0.08 * k
-        for c in base:
-            r = int(int(c[1:3], 16) * f)
-            g = int(int(c[3:5], 16) * f)
-            b = int(int(c[5:7], 16) * f)
-            pal.append(f"#{r:02x}{g:02x}{b:02x}")
-    return pal[:60]
-
-
-# ------------------------- CLI: saves multiple HTMLs -------------------------
 def main():
+    from src.laue_ops import laue_elements
+    from src.riesz_energy import riesz_energies_fused
+
     ap = argparse.ArgumentParser(
-        description="I(532) — cu2ho → KR(FZ, canonical) with ψ'(u) fit; saves base/E3/NN/ops plots"
+        description="I(532) — cu2ho → KR(FZ, canonical) with ψ'(u) fit; prints mapping and energy summary"
     )
     ap.add_argument(
         "--h", type=int, default=11, help="half-resolution in x/y (2h cells per axis)"
@@ -534,21 +488,6 @@ def main():
     ap.add_argument(
         "--device", type=str, default="auto", choices=["auto", "cpu", "cuda"]
     )
-    ap.add_argument("--out_base", type=str, default="I532_base.html")
-    ap.add_argument("--out_e3", type=str, default="I532_E3.html")
-    ap.add_argument("--out_nn", type=str, default="I532_NN.html")
-    ap.add_argument("--out_ops", type=str, default="I532_ops.html")
-    ap.add_argument(
-        "--plot_ops",
-        action="store_true",
-        help="also plot symmetry copies (color by op index)",
-    )
-    ap.add_argument(
-        "--downsample",
-        type=int,
-        default=0,
-        help="max points per op trace (0 = no downsample)",
-    )
     args = ap.parse_args()
 
     device = torch.device(
@@ -556,207 +495,23 @@ def main():
     )
     torch.set_grad_enabled(False)
 
-    # 1) cu → ho (source), slight retract from shell
     cu_grid = so3_cubochoric_grid_stretch(args.h, args.z, device=device, dtype=DTYPE)
     ho_src = cu2ho(cu_grid.to(dtype=DTYPE, device=device)) * 0.99999
-
-    # 2) Map once to canonical RFZ
     ho_map = ho2ho_I(ho_src)
 
-    # ----------------- Plot A: base cloud -----------------
-    lim = float(H_MAX)
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_src[:, 0].detach().cpu().numpy(),
-            y=ho_src[:, 1].detach().cpu().numpy(),
-            z=ho_src[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="Original (cu→ho)",
-            marker=dict(size=2, opacity=0.35),
-        )
-    )
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_map[:, 0].detach().cpu().numpy(),
-            y=ho_map[:, 1].detach().cpu().numpy(),
-            z=ho_map[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="RFZ (canonical)",
-            marker=dict(size=2, opacity=0.9),
-        )
-    )
-    fig.update_layout(
-        title="I(532) KR — canonical RFZ (top 5-fold at +z, 2-fold along +x)",
-        scene=dict(
-            xaxis=dict(range=[-lim, lim], title="x"),
-            yaxis=dict(range=[-lim, lim], title="y"),
-            zaxis=dict(range=[-lim, lim], title="z"),
-            aspectmode="cube",
-        ),
-        legend=dict(x=0.02, y=0.98),
-        margin=dict(l=0, r=0, t=36, b=0),
-        template="plotly_white",
-    )
-    fig.write_html(args.out_base, include_plotlyjs="cdn")
-    print(f"[ok] wrote {args.out_base} with {ho_map.shape[0]} points")
-
-    # 3) Quaternionize RFZ, energies & NN contributions
     q_fz = ho2qu(ho_map.to(dtype=DTYPE, device=device))
     q_fz = q_fz / torch.clamp(q_fz.norm(dim=-1, keepdim=True), min=1e-15)
-    ops = laue_elements(12).to(dtype=DTYPE, device=device)  # (G,4)
-
-    E1, E2, E3, _, _, S3_i, NN_i = riesz_energies_fused(
+    ops = laue_elements(12).to(dtype=DTYPE, device=device)
+    E1, E2, E3, _, _, _, NN_i = riesz_energies_fused(
         q_fz, ops, return_contrib=True, return_nn=True
     )
 
-    # ----------------- Plot B: color by E3 contribution -----------------
-    s3 = S3_i.detach()
-    s3 = s3 / torch.clamp(torch.median(s3), min=1e-15)
-    s3_np = s3.cpu().numpy().astype(np.float32)
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_src[:, 0].detach().cpu().numpy(),
-            y=ho_src[:, 1].detach().cpu().numpy(),
-            z=ho_src[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="Original (cu→ho)",
-            marker=dict(size=2, opacity=0.25),
-        )
-    )
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_map[:, 0].detach().cpu().numpy(),
-            y=ho_map[:, 1].detach().cpu().numpy(),
-            z=ho_map[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="RFZ colored by E3 contrib",
-            marker=dict(
-                size=3, color=s3_np, colorscale="Turbo", showscale=True, opacity=1.0
-            ),
-        )
-    )
-    fig.update_layout(
-        title=f"I(532) RFZ — colored by Riesz E3 contribution (E3 total = {float(E3):.6e})",
-        scene=dict(
-            xaxis=dict(range=[-lim, lim], title="x"),
-            yaxis=dict(range=[-lim, lim], title="y"),
-            zaxis=dict(range=[-lim, lim], title="z"),
-            aspectmode="cube",
-        ),
-        legend=dict(x=0.02, y=0.98),
-        margin=dict(l=0, r=0, t=36, b=0),
-        template="plotly_white",
-    )
-    fig.write_html(args.out_e3, include_plotlyjs="cdn")
-    print(f"[ok] wrote {args.out_e3}  (E3 total = {float(E3):.6e})")
-
-    # ----------------- Plot C: color by NN_i -----------------
-    NN = NN_i.detach()
-    NN = NN / torch.clamp(torch.median(NN), min=1e-15)
-    NN_np = NN.cpu().numpy().astype(np.float32)
-
+    print(f"[ok] mapped {ho_map.shape[0]} points into the canonical RFZ")
+    print(f"[info] E1={float(E1):.6e}, E2={float(E2):.6e}, E3={float(E3):.6e}")
     print(
-        f" NN stats —  min: {float(NN_i.min())},  median: {float(torch.median(NN_i))},  max: {float(NN_i.max())}"
+        f"[info] NN stats — min: {float(NN_i.min()):.6e}, "
+        f"median: {float(torch.median(NN_i)):.6e}, max: {float(NN_i.max()):.6e}"
     )
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_src[:, 0].detach().cpu().numpy(),
-            y=ho_src[:, 1].detach().cpu().numpy(),
-            z=ho_src[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="Original (cu→ho)",
-            marker=dict(size=2, opacity=0.25),
-        )
-    )
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_map[:, 0].detach().cpu().numpy(),
-            y=ho_map[:, 1].detach().cpu().numpy(),
-            z=ho_map[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="RFZ colored by NN",
-            marker=dict(
-                size=3, color=NN_np, colorscale="Turbo", showscale=True, opacity=1.0
-            ),
-        )
-    )
-    fig.update_layout(
-        title=f"I(532) RFZ — colored by nearest-neighbor index (median = {float(torch.median(NN_i)):.6e})",
-        scene=dict(
-            xaxis=dict(range=[-lim, lim], title="x"),
-            yaxis=dict(range=[-lim, lim], title="y"),
-            zaxis=dict(range=[-lim, lim], title="z"),
-            aspectmode="cube",
-        ),
-        legend=dict(x=0.02, y=0.98),
-        margin=dict(l=0, r=0, t=36, b=0),
-        template="plotly_white",
-    )
-    fig.write_html(args.out_nn, include_plotlyjs="cdn")
-    print(f"[ok] wrote {args.out_nn}")
-
-    # ----------------- Plot D: symmetry copies (optional) -----------------
-    # if args.plot_ops:
-    G = ops.shape[0]
-    colors = palette60()
-    max_plot = args.downsample if args.downsample and args.downsample > 0 else None
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_map[:, 0].detach().cpu().numpy(),
-            y=ho_map[:, 1].detach().cpu().numpy(),
-            z=ho_map[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="RFZ base (op 0)",
-            marker=dict(size=2, color="#000000", opacity=0.35),
-        )
-    )
-
-    for gi in range(G):
-        g = ops[gi].unsqueeze(0).expand_as(q_fz)
-        q_prime = qu_prod(g, q_fz)
-        q_prime = q_prime / torch.clamp(q_prime.norm(dim=-1, keepdim=True), min=1e-15)
-        ho_prime = qu2ho(q_prime)
-
-        if max_plot is not None and ho_prime.shape[0] > max_plot:
-            idx = torch.randint(
-                0, ho_prime.shape[0], (max_plot,), device=ho_prime.device
-            )
-            xyz = ho_prime[idx].detach().cpu().numpy()
-        else:
-            xyz = ho_prime.detach().cpu().numpy()
-
-        fig.add_trace(
-            go.Scatter3d(
-                x=xyz[:, 0],
-                y=xyz[:, 1],
-                z=xyz[:, 2],
-                mode="markers",
-                name=f"op {gi:02d}",
-                marker=dict(size=2, color=colors[gi % len(colors)], opacity=1.0),
-            )
-        )
-
-    fig.update_layout(
-        title="I(532) — RFZ copies under all Laue ops (colored by op index)",
-        scene=dict(
-            xaxis=dict(range=[-lim, lim], title="x"),
-            yaxis=dict(range=[-lim, lim], title="y"),
-            zaxis=dict(range=[-lim, lim], title="z"),
-            aspectmode="cube",
-        ),
-        legend=dict(font=dict(size=10), x=0.02, y=0.98, itemsizing="constant"),
-        margin=dict(l=0, r=0, t=36, b=0),
-        template="plotly_white",
-    )
-    fig.write_html(args.out_ops, include_plotlyjs="cdn")
-    print(f"[ok] wrote {args.out_ops} with {G} colored symmetry copies")
 
 
 if __name__ == "__main__":

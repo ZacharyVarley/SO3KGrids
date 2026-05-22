@@ -8,7 +8,6 @@ Icosahedral (532) KR map in crystallographic conventional setting
 - A 2-fold axis aligned to +x
 - Local alignments are performed against these canonical axes
 - Hard-coded Chebyshev inverse-CDF for azimuth on the 1/120 sector
-- Saves multiple Plotly HTML views (base, E3-colored, NN-colored, ops-colored)
 """
 
 import math
@@ -24,11 +23,9 @@ if str(_root) not in sys.path:
 
 import numpy as np
 import torch
-import plotly.graph_objects as go
-
-from orientation_ops import cu2ho, ho2qu, qu2ho, qu_prod
-from laue_ops import laue_elements
-from riesz_energy import riesz_energies_fused
+from src.orientation_ops import cu2ho, ho2qu
+from src.laue_ops import laue_elements
+from src.riesz_energy import riesz_energies_fused
 
 # ------------------------- Numeric/geom constants -------------------------
 DTYPE = torch.float64
@@ -389,34 +386,10 @@ def so3_cubochoric_grid_stretch(
 
 
 # ---------- discrete palette for up to 60 ops ----------
-def palette60():
-    base = [
-        "#1f77b4",
-        "#ff7f0e",
-        "#2ca02c",
-        "#d62728",
-        "#9467bd",
-        "#8c564b",
-        "#e377c2",
-        "#7f7f7f",
-        "#bcbd22",
-        "#17becf",
-    ]
-    pal = []
-    for k in range(6):
-        f = 1.0 - 0.08 * k
-        for c in base:
-            r = int(int(c[1:3], 16) * f)
-            g = int(int(c[3:5], 16) * f)
-            b = int(int(c[5:7], 16) * f)
-            pal.append(f"#{r:02x}{g:02x}{b:02x}")
-    return pal[:60]
-
-
-# ------------------------- CLI: saves multiple HTMLs -------------------------
+# ------------------------- CLI summary -------------------------
 def main():
     ap = argparse.ArgumentParser(
-        description="I(532) — cu2ho → KR(FZ, canonical) with ψ'(u) fit; saves base/E3/NN/ops plots"
+        description="I(532) — cu2ho → KR(FZ, canonical) with ψ'(u) fit; prints mapping and energy summary"
     )
     ap.add_argument(
         "--h", type=int, default=11, help="half-resolution in x/y (2h cells per axis)"
@@ -425,21 +398,6 @@ def main():
     ap.add_argument(
         "--device", type=str, default="auto", choices=["auto", "cpu", "cuda"]
     )
-    ap.add_argument("--out_base", type=str, default="I532_base.html")
-    ap.add_argument("--out_e3", type=str, default="I532_E3.html")
-    ap.add_argument("--out_nn", type=str, default="I532_NN.html")
-    ap.add_argument("--out_ops", type=str, default="I532_ops.html")
-    ap.add_argument(
-        "--plot_ops",
-        action="store_true",
-        help="also plot symmetry copies (color by op index)",
-    )
-    ap.add_argument(
-        "--downsample",
-        type=int,
-        default=0,
-        help="max points per op trace (0 = no downsample)",
-    )
     args = ap.parse_args()
 
     device = torch.device(
@@ -447,207 +405,23 @@ def main():
     )
     torch.set_grad_enabled(False)
 
-    # 1) cu → ho (source), slight retract from shell
     cu_grid = so3_cubochoric_grid_stretch(args.h, args.z, device=device, dtype=DTYPE)
     ho_src = cu2ho(cu_grid.to(dtype=DTYPE, device=device)) * 0.99999
-
-    # 2) Map once to canonical RFZ
     ho_map = ho2ho_I(ho_src)
 
-    # ----------------- Plot A: base cloud -----------------
-    lim = float(H_MAX)
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_src[:, 0].detach().cpu().numpy(),
-            y=ho_src[:, 1].detach().cpu().numpy(),
-            z=ho_src[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="Original (cu→ho)",
-            marker=dict(size=2, opacity=0.35),
-        )
-    )
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_map[:, 0].detach().cpu().numpy(),
-            y=ho_map[:, 1].detach().cpu().numpy(),
-            z=ho_map[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="RFZ (canonical)",
-            marker=dict(size=2, opacity=0.9),
-        )
-    )
-    fig.update_layout(
-        title="I(532) KR — canonical RFZ (top 5-fold at +z, 2-fold along +x)",
-        scene=dict(
-            xaxis=dict(range=[-lim, lim], title="x"),
-            yaxis=dict(range=[-lim, lim], title="y"),
-            zaxis=dict(range=[-lim, lim], title="z"),
-            aspectmode="cube",
-        ),
-        legend=dict(x=0.02, y=0.98),
-        margin=dict(l=0, r=0, t=36, b=0),
-        template="plotly_white",
-    )
-    fig.write_html(args.out_base, include_plotlyjs="cdn")
-    print(f"[ok] wrote {args.out_base} with {ho_map.shape[0]} points")
-
-    # 3) Quaternionize RFZ, energies & NN contributions
     q_fz = ho2qu(ho_map.to(dtype=DTYPE, device=device))
     q_fz = q_fz / torch.clamp(q_fz.norm(dim=-1, keepdim=True), min=1e-15)
-    ops = laue_elements(12).to(dtype=DTYPE, device=device)  # (G,4)
-
-    E1, E2, E3, _, _, S3_i, NN_i = riesz_energies_fused(
+    ops = laue_elements(12).to(dtype=DTYPE, device=device)
+    E1, E2, E3, _, _, _, NN_i = riesz_energies_fused(
         q_fz, ops, return_contrib=True, return_nn=True
     )
 
-    # ----------------- Plot B: color by E3 contribution -----------------
-    s3 = S3_i.detach()
-    s3 = s3 / torch.clamp(torch.median(s3), min=1e-15)
-    s3_np = s3.cpu().numpy().astype(np.float32)
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_src[:, 0].detach().cpu().numpy(),
-            y=ho_src[:, 1].detach().cpu().numpy(),
-            z=ho_src[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="Original (cu→ho)",
-            marker=dict(size=2, opacity=0.25),
-        )
-    )
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_map[:, 0].detach().cpu().numpy(),
-            y=ho_map[:, 1].detach().cpu().numpy(),
-            z=ho_map[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="RFZ colored by E3 contrib",
-            marker=dict(
-                size=3, color=s3_np, colorscale="Turbo", showscale=True, opacity=1.0
-            ),
-        )
-    )
-    fig.update_layout(
-        title=f"I(532) RFZ — colored by Riesz E3 contribution (E3 total = {float(E3):.6e})",
-        scene=dict(
-            xaxis=dict(range=[-lim, lim], title="x"),
-            yaxis=dict(range=[-lim, lim], title="y"),
-            zaxis=dict(range=[-lim, lim], title="z"),
-            aspectmode="cube",
-        ),
-        legend=dict(x=0.02, y=0.98),
-        margin=dict(l=0, r=0, t=36, b=0),
-        template="plotly_white",
-    )
-    fig.write_html(args.out_e3, include_plotlyjs="cdn")
-    print(f"[ok] wrote {args.out_e3}  (E3 total = {float(E3):.6e})")
-
-    # ----------------- Plot C: color by NN_i -----------------
-    NN = NN_i.detach()
-    NN = NN / torch.clamp(torch.median(NN), min=1e-15)
-    NN_np = NN.cpu().numpy().astype(np.float32)
-
+    print(f"[ok] mapped {ho_map.shape[0]} points into the canonical RFZ")
+    print(f"[info] E1={float(E1):.6e}, E2={float(E2):.6e}, E3={float(E3):.6e}")
     print(
-        f" NN stats —  min: {float(NN_i.min())},  median: {float(torch.median(NN_i))},  max: {float(NN_i.max())}"
+        f"[info] NN stats — min: {float(NN_i.min()):.6e}, "
+        f"median: {float(torch.median(NN_i)):.6e}, max: {float(NN_i.max()):.6e}"
     )
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_src[:, 0].detach().cpu().numpy(),
-            y=ho_src[:, 1].detach().cpu().numpy(),
-            z=ho_src[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="Original (cu→ho)",
-            marker=dict(size=2, opacity=0.25),
-        )
-    )
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_map[:, 0].detach().cpu().numpy(),
-            y=ho_map[:, 1].detach().cpu().numpy(),
-            z=ho_map[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="RFZ colored by NN",
-            marker=dict(
-                size=3, color=NN_np, colorscale="Turbo", showscale=True, opacity=1.0
-            ),
-        )
-    )
-    fig.update_layout(
-        title=f"I(532) RFZ — colored by nearest-neighbor index (median = {float(torch.median(NN_i)):.6e})",
-        scene=dict(
-            xaxis=dict(range=[-lim, lim], title="x"),
-            yaxis=dict(range=[-lim, lim], title="y"),
-            zaxis=dict(range=[-lim, lim], title="z"),
-            aspectmode="cube",
-        ),
-        legend=dict(x=0.02, y=0.98),
-        margin=dict(l=0, r=0, t=36, b=0),
-        template="plotly_white",
-    )
-    fig.write_html(args.out_nn, include_plotlyjs="cdn")
-    print(f"[ok] wrote {args.out_nn}")
-
-    # ----------------- Plot D: symmetry copies (optional) -----------------
-    # if args.plot_ops:
-    G = ops.shape[0]
-    colors = palette60()
-    max_plot = args.downsample if args.downsample and args.downsample > 0 else None
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter3d(
-            x=ho_map[:, 0].detach().cpu().numpy(),
-            y=ho_map[:, 1].detach().cpu().numpy(),
-            z=ho_map[:, 2].detach().cpu().numpy(),
-            mode="markers",
-            name="RFZ base (op 0)",
-            marker=dict(size=2, color="#000000", opacity=0.35),
-        )
-    )
-
-    for gi in range(G):
-        g = ops[gi].unsqueeze(0).expand_as(q_fz)
-        q_prime = qu_prod(g, q_fz)
-        q_prime = q_prime / torch.clamp(q_prime.norm(dim=-1, keepdim=True), min=1e-15)
-        ho_prime = qu2ho(q_prime)
-
-        if max_plot is not None and ho_prime.shape[0] > max_plot:
-            idx = torch.randint(
-                0, ho_prime.shape[0], (max_plot,), device=ho_prime.device
-            )
-            xyz = ho_prime[idx].detach().cpu().numpy()
-        else:
-            xyz = ho_prime.detach().cpu().numpy()
-
-        fig.add_trace(
-            go.Scatter3d(
-                x=xyz[:, 0],
-                y=xyz[:, 1],
-                z=xyz[:, 2],
-                mode="markers",
-                name=f"op {gi:02d}",
-                marker=dict(size=2, color=colors[gi % len(colors)], opacity=1.0),
-            )
-        )
-
-    fig.update_layout(
-        title="I(532) — RFZ copies under all Laue ops (colored by op index)",
-        scene=dict(
-            xaxis=dict(range=[-lim, lim], title="x"),
-            yaxis=dict(range=[-lim, lim], title="y"),
-            zaxis=dict(range=[-lim, lim], title="z"),
-            aspectmode="cube",
-        ),
-        legend=dict(font=dict(size=10), x=0.02, y=0.98, itemsizing="constant"),
-        margin=dict(l=0, r=0, t=36, b=0),
-        template="plotly_white",
-    )
-    fig.write_html(args.out_ops, include_plotlyjs="cdn")
-    print(f"[ok] wrote {args.out_ops} with {G} colored symmetry copies")
 
 
 if __name__ == "__main__":

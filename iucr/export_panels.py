@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Export IUCR submission figures with descriptive, ordered file names.
 
-Uses saved ``figure*_col_settings.json`` (and ``figure6_settings.json``) for
-layout. Typography and line weights follow the IUCr artwork guide. Does not
-regenerate numerical curve/grid data except for figure 6 (built on the fly
-from KR grid definitions, same as ``figure6.py``).
+Uses saved layout JSON in ``figures/settings/``. Typography and line weights
+follow the IUCr artwork guide. Does not regenerate numerical curve/grid data
+except for the two 3D panels built directly from the maintained figure modules.
 
 Usage:
     python -m iucr.export_panels
@@ -17,6 +16,7 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 import matplotlib
 
@@ -28,7 +28,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from figure_ui_common import (
+from figures.common import (
     IUCR_COL_W,
     IUCR_COL_W_MM,
     IUCR_DPI,
@@ -52,6 +52,20 @@ from figure_ui_common import (
     scale_scatter_point_size,
     validate_iucr_fontsizes,
 )
+_ROOT_PATH = Path(_ROOT)
+_FIGURES_DIR = _ROOT_PATH / "figures"
+_FIGURE_SETTINGS_DIR = _FIGURES_DIR / "settings"
+_FIGURE_DATA_DIR = _FIGURES_DIR / "data"
+_IUCR_PANELS_DIR = _ROOT_PATH / "iucr_panels"
+
+FIGURE1_SETTINGS = _FIGURE_SETTINGS_DIR / "so3t_rejection_vs_kr.json"
+FIGURE2_SETTINGS = _FIGURE_SETTINGS_DIR / "cubochoric_anisotropy.json"
+FIGURE3_SETTINGS = _FIGURE_SETTINGS_DIR / "nn_cdf_overlays.json"
+FIGURE4_SETTINGS = _FIGURE_SETTINGS_DIR / "grid_method_comparison.json"
+FIGURE5_SETTINGS = _FIGURE_SETTINGS_DIR / "thomson_relaxation.json"
+FIGURE6_SETTINGS = _FIGURE_SETTINGS_DIR / "laue_o_pc_vs_fcc.json"
+FIGURE3_WITNESS_DATA = _FIGURE_DATA_DIR / "figure3_witness_nn.npz"
+FIGURE3_SELF_NN_DATA = _FIGURE_DATA_DIR / "figure3_self_nn.npz"
 
 # Reference layouts for scaling 3D scatter sizes to full-page width.
 _FIG1_REF_WIDTH_IN = 12.8
@@ -64,15 +78,15 @@ from iucr import stems
 
 _ARTWORK = iucr_artwork_style()
 
-_DEFAULT_OUT_DIR = os.path.join(_ROOT, "iucr_panels")
+_DEFAULT_OUT_DIR = str(_IUCR_PANELS_DIR)
 
 SETTINGS = {
-    1: os.path.join(_ROOT, "figure1_col_settings.json"),
-    2: os.path.join(_ROOT, "figure2_col_settings.json"),
-    3: os.path.join(_ROOT, "figure3_col_settings.json"),
-    4: os.path.join(_ROOT, "figure4_col_settings.json"),
-    5: os.path.join(_ROOT, "figure5_col_settings.json"),
-    6: os.path.join(_ROOT, "figure6_settings.json"),
+    1: str(FIGURE1_SETTINGS),
+    2: str(FIGURE2_SETTINGS),
+    3: str(FIGURE3_SETTINGS),
+    4: str(FIGURE4_SETTINGS),
+    5: str(FIGURE5_SETTINGS),
+    6: str(FIGURE6_SETTINGS),
 }
 
 
@@ -111,7 +125,7 @@ def _single_panel_axes(*, height: float = IUCR_PANEL_H):
 
 
 def _load_figure2_settings(path: str):
-    import figure2_col as f2
+    from figures import cubochoric_anisotropy as f2
 
     s = f2.Settings()
     if os.path.exists(path):
@@ -132,7 +146,7 @@ def export_so3t_rejection_kr(out_dir: str) -> list[str]:
     import numpy as np
     import torch
 
-    import figure1_col as f1
+    from figures import so3t_rejection_vs_kr as f1
 
     torch.manual_seed(f1.SEED)
     np.random.seed(f1.SEED)
@@ -191,7 +205,7 @@ def export_so3t_rejection_kr(out_dir: str) -> list[str]:
 
 
 def export_cubochoric_anisotropy(out_dir: str) -> list[str]:
-    import figure2_col as f2
+    from figures import cubochoric_anisotropy as f2
 
     data = f2.load_data(f2.DATA_FILE)
     grouped = f2.group_results(data)
@@ -237,11 +251,11 @@ def _figure3_add_legend(ax, app, use_tex: bool) -> None:
 
 
 def export_nn_cdf_panels(out_dir: str) -> list[str]:
-    import figure3_col as f3
-    from figure_ui_common import load_dataclass_settings
+    from figures import nn_cdf_overlays as f3
+    from figures.common import load_dataclass_settings
 
-    witness_path = "figure3_data_witness_col.npz"
-    self_nn_path = f3._resolve_self_nn_default()
+    witness_path = str(FIGURE3_WITNESS_DATA)
+    self_nn_path = str(FIGURE3_SELF_NN_DATA)
     data3 = f3.load_npz_overlay(witness_path)
     data4 = f3.load_npz_overlay(self_nn_path)
 
@@ -312,7 +326,7 @@ def export_nn_cdf_panels(out_dir: str) -> list[str]:
 
 
 def export_grid_method_comparison(out_dir: str) -> list[str]:
-    import figure4_manual as f4
+    from figures import grid_method_comparison as f4
 
     f4.load_col_settings(SETTINGS[4])
     fonts = iucr_font_sizes()
@@ -371,7 +385,7 @@ def export_grid_method_comparison(out_dir: str) -> list[str]:
 
 
 def export_thomson_relaxation(out_dir: str) -> list[str]:
-    import figure5_manual as f5
+    from figures import thomson_relaxation as f5
 
     f5.load_col_settings(SETTINGS[5])
     fonts = iucr_font_sizes()
@@ -406,7 +420,7 @@ def export_laue_o_pc_vs_fcc_kr(out_dir: str) -> list[str]:
     """Primitive vs FCC KR grids for Laue O (2×3 combined figure)."""
     import torch
 
-    import figure6 as f6
+    from figures import laue_o_pc_vs_fcc as f6
 
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     match = f6.find_best_match(h_min=1, h_max=30, n_s3_min=1_000, n_s3_max=200_000)
@@ -426,7 +440,7 @@ def export_laue_o_pc_vs_fcc_kr(out_dir: str) -> list[str]:
             s = f6.settings_from_raw(json.load(fh), s)
         print(f"[settings] Loaded {path}")
     apply_iucr_typography_full_page(s, field_map={"text_size": "label"})
-    # Interactive UI uses large preview markers; export uses figure6.py reference scale.
+    # Interactive UI uses large preview markers; export uses the maintained Figure 6 reference scale.
     s.point_size = scale_scatter_point_size(
         _FIG6_REF_POINT_SIZE,
         design_width_in=_FIG6_REF_WIDTH_IN,
@@ -503,7 +517,7 @@ def main(argv: list[str] | None = None) -> int:
         f"markers {IUCR_MARKER_SIZE_STD} pt, marker edge {_ARTWORK['marker_edgewidth']} pt"
     )
     print("Stems: content-based names in iucr/stems.py (ordered 01–12).")
-    print("Layout from figure*_col_settings.json / figure6_settings.json.")
+    print("Layout from figures/settings/*.json.")
 
     which = args.only or sorted(_EXPORTERS)
     all_stems: list[str] = []

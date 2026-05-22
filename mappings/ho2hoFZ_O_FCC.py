@@ -4,8 +4,8 @@
 import math
 import torch
 
-from orientation_ops import cu2qu, qu_std, qu_norm, qu2cu, ho2cu, cu2ho, ho2qu
-from laue_ops import ori_in_fz_laue
+from src.orientation_ops import cu2qu, qu_std, qu_norm, qu2cu, ho2cu, cu2ho, ho2qu
+from src.laue_ops import ori_in_fz_laue
 
 NAME = "O_FCC"
 LAUE_ID = 11

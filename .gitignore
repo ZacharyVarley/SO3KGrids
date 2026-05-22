@@ -214,3 +214,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---- Project: generated figure artefacts ----
+# Rendered figures at repo root from figure*_col.py / figure*_manual.py / figure*.py / figure*_b.py / test_*.py
+# (regenerate with `python -m publication.export_figures` or the per-figure scripts).
+/figure*.pdf
+/figure*.png
+/figure*.eps
+/figure*.gif
+/test_*.pdf
+/test_*.png
+# Keep the stereogram MP4 (referenced from README appendix).
+!/assets/stereogram_so3_o.mp4
+# In paper_figures/ keep PNG and PDF outputs; regenerate EPS as needed.
+paper_figures/*.eps
