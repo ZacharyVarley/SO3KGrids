@@ -41,11 +41,13 @@ Plotting and the paper figure pipeline live in [figures/](figures/); the camera-
 
 An octahedral KR grid lifted to all of $\mathrm{SO}(3)$ by the 24 elements of $O$, drawn in homochoric coordinates.
 
+<details>
+<summary>Show stereogram</summary>
+<br/>
 <p align="center">
-  <video controls loop muted playsinline width="600">
-    <source src="assets/stereogram_so3_o_cropped.mp4" type="video/mp4" />
-  </video>
+  <img src="assets/stereogram_so3_o.gif" alt="Stereogram: octahedral KR grid on SO(3) in homochoric coordinates." width="600" />
 </p>
+</details>
 
 > **Free-fuse.** ~50 cm from the screen, two spheres about 10 cm apart, cross your eyes until they overlap.
 
