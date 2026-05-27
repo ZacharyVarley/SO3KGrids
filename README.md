@@ -43,7 +43,7 @@ An octahedral KR grid lifted to all of $\mathrm{SO}(3)$ by the 24 elements of $O
 
 <p align="center">
   <video controls loop muted playsinline width="600">
-    <source src="assets/stereogram_so3_o.mp4" type="video/mp4" />
+    <source src="assets/stereogram_so3_o_cropped.mp4" type="video/mp4" />
   </video>
 </p>
 
