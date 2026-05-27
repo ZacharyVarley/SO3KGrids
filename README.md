@@ -1,30 +1,65 @@
-# Uniform Grids on $\mathrm{SO}(3)/K$
-
-Reference implementation for *Approximately Uniform Grids over Crystal Orientations* by Z. T. Varley and M. De Graef.
-
-This repository constructs constant-Jacobian Knothe-Rosenblatt transports from the homochoric ball to crystallographic fundamental zones, yielding structured uniform grids on $\mathrm{SO}(3)/K$ for the cyclic, dihedral, tetrahedral, octahedral, and icosahedral groups. The release tree is intentionally narrow: the entire figure pipeline lives under `figures/`, rendered paper figures live in `paper_figures/`, and the paper source lives in `paper/`.
+<h1 align="center">Uniform Grids on SO(3)/K</h1>
 
 <p align="center">
-  <img src="paper_figures/01_so3t_rejection_vs_kr_fz.png" alt="Cubochoric rejection versus KR transport in the SO(3)/T fundamental zone." width="720" />
+  <em>Reference implementation for</em><br/>
+  <strong>Approximately Uniform Grids over Crystal Orientations</strong><br/>
+  Z. T. Varley &middot; M. De Graef
 </p>
 
-## At a glance
+<p align="center">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white">
+  <img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white">
+  <img alt="KeOps" src="https://img.shields.io/badge/KeOps-symbolic%20kernels-6f42c1">
+</p>
 
-- Direct sampling on $\mathrm{SO}(3)/K$
-- Constant-cost KR maps for $C_k$, $D_k$, $T$, $O$, and $I$
+<p align="center">
+  <img src="paper_figures/01_so3t_rejection_vs_kr_fz.png" alt="Cubochoric rejection versus KR transport in the SO(3)/T fundamental zone." width="780" />
+</p>
 
-## Export the paper figures
+---
+
+## The short version
+
+Sampling crystal orientations means sampling the quotient $\mathrm{SO}(3)/K$, where $K$ is the rotational point group of the crystal. The textbook recipe (build a cubochoric grid, then throw away every point outside the fundamental zone) is wasteful for low-symmetry groups and produces uneven sampling near zone boundaries.
+
+This repo takes a different route. For each crystallographic point group it constructs a **constant-Jacobian Knothe-Rosenblatt transport** that pushes the homochoric ball *directly* onto the fundamental zone. Feed in any structured point set on the cube (Sobol, Halton, a regular SC/FCC/BCC lattice) to the orientation quotient.
+
+## What's in the box
+
+The five $K$-specific transports live in [mappings/](mappings/) as drop-in `ho2hoFZ_*` functions:
+
+- **$C_k$** and **$D_k$**: fully analytic, derived from per-axis CDF inverses.
+- **$T$** and **$O$**: piecewise analytic over the cubic FZ; the octahedral map ships in both standard cubochoric-aligned and FCC-aligned variants.
+- **$I$**: fitted azimuthal/polar CDFs with a post-rotation correction for the icosahedral FZ.
+
+Numerical backbone in [src/](src/): orientation conversions, Laue-group operators, $\mathrm{SO}(3)$ baselines (super-Fibonacci, Marsaglia, Shoemake, cubochoric), Riesz energy, covering radius, and a quotient-metric Thomson relaxer for benchmark baselines.
+
+Plotting and the paper figure pipeline live in [figures/](figures/); the camera-ready PNG / PDF / EPS bundles are checked in under [paper_figures/](paper_figures/).
+
+## Stereogram
+
+An octahedral KR grid lifted to all of $\mathrm{SO}(3)$ by the 24 elements of $O$, drawn in homochoric coordinates.
+
+<p align="center">
+  <video controls loop muted playsinline width="600">
+    <source src="assets/stereogram_so3_o.mp4" type="video/mp4" />
+  </video>
+</p>
+
+> **Free-fuse.** ~50 cm from the screen, two spheres about 10 cm apart, cross your eyes until they overlap.
+
+## Reproduce the paper
 
 ```bash
 pip install -r requirements.txt
-python -m publication.export_figures
+python -m publication.export_figures            # all twelve panels
+python -m publication.export_figures --only 1 4 # a subset
 ```
 
-Use `python -m publication.export_figures --only 1 4 6` to export a subset. The exporter writes PNG, PDF, and vector EPS into `paper_figures/`. Details on artwork sizing and EPS generation are in [publication/README.md](publication/README.md).
+Outputs land in [paper_figures/](paper_figures/) as PNG, PDF, and true vector EPS (rendered from the TeX PDF via Poppler `pdftops`, not raster-wrapped). Layout details are in [publication/README.md](publication/README.md).
 
-## Regenerate cached data
-
-The maintained generators are:
+Cached data behind the figures can be rebuilt from scratch:
 
 ```bash
 python -m figures.generate_cubochoric_anisotropy
@@ -33,25 +68,13 @@ python -m figures.generate_grid_method_metrics
 python -m figures.generate_thomson_relaxation
 ```
 
-Figure 1 and Figure 6 are built directly from code by the exporter. Figure 1 uses the same maintained plotting module as the interactive view and benefits from a working `pykeops` installation.
+Any panel module under [figures/](figures/) is also runnable on its own, which is handy for tweaking limits or colour mappings interactively:
 
-## Repository layout
+```bash
+python -m figures.cubochoric_anisotropy
+```
 
-| Path | Purpose |
-|---|---|
-| `src/` | Core numerical routines for grid construction, symmetry operators, metrics, and Thomson relaxation |
-| `mappings/` | Analytic KR transports and fitting code retained in full |
-| `figures/` | Maintained plotting modules, generator entrypoints, cached data, and saved layout JSON |
-| `publication/` | Export driver and ordered output stems |
-| `paper_figures/` | Rendered paper figures |
-| `paper/` | Manuscript and caption fragments |
-| `assets/` | Supplemental media kept for the paper release |
-
-## Notes
-
-- `paper_figures/*.eps` are vector exports produced from the TeX PDF via Poppler `pdftops`; they are not raster wrappers.
-- The cluttered root-level rendered artefacts and obsolete figure variants were intentionally removed from the release tree.
-- If you want to inspect or tune a maintained panel interactively, run the module directly, for example `python -m figures.cubochoric_anisotropy`.
+Figure 1 benefits from a working `pykeops` install for the kernel evaluations.
 
 ## Citation
 
@@ -61,17 +84,4 @@ coming soon...
 
 ## License
 
-Released under the MIT License. See [LICENSE](LICENSE).
-
-<details>
-<summary><strong>Appendix: cross-eyed stereogram of the symmetry-extended grid on $\mathrm{SO}(3)$</strong></summary>
-
-The video below shows an octahedral-group KR grid extended to all of $\mathrm{SO}(3)$ by the 24 elements of $O$, in homochoric coordinates. To free-fuse: sit roughly 50 cm from the screen, zoom until the two checkered spheres are about 10 cm apart, and cross your eyes until they overlap.
-
-<p align="center">
-  <video controls loop muted playsinline width="550">
-    <source src="assets/stereogram_so3_o.mp4" type="video/mp4" />
-  </video>
-</p>
-
-</details>
+MIT. See [LICENSE](LICENSE).
