@@ -35,6 +35,7 @@ import sys
 import time
 from contextlib import redirect_stdout
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from io import StringIO
 from typing import Dict, List, Tuple, Union
 
@@ -63,7 +64,6 @@ from matplotlib.widgets import Button, CheckButtons, Slider
 from src.grid_FZ import kr_sample_laue
 from src.grid_SO3 import so3_super_fibonacci
 from src.orientation_ops import cu2qu, qu_std, qu_norm
-from repo_paths import FIGURE4_DATA, GRID_METHOD_GENERATOR_SETTINGS
 from src.riesz_energy import optimal_constants_S3, riesz_energies_fused
 from src.covering_radius import covering_radius, covering_radius_star_deg
 
@@ -98,8 +98,9 @@ LOGQUAD_COEFFS: Dict[str, Tuple[float, float, float]] = {
     "D6": (+0.664528, -0.185023, +0.026121),
 }
 
-DATA_FILE = str(FIGURE4_DATA)
-SETTINGS_FILE = str(GRID_METHOD_GENERATOR_SETTINGS)
+_ROOT = Path(__file__).resolve().parents[1]
+DATA_FILE = str(_ROOT / "figures" / "data" / "figure4_grid_methods.npz")
+SETTINGS_FILE = str(_ROOT / "figures" / "settings" / "grid_method_comparison.json")
 DEFAULT_STEM = "grid_method_metrics"
 N_EFF_MIN = 100_000
 N_EFF_MAX = 1_000_000

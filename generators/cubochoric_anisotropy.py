@@ -49,14 +49,17 @@ import numpy as np
 import torch
 
 from src.grid_FZ import cu_kr_grid
-from repo_paths import FIGURE2_DATA
+from pathlib import Path
+
 from src.riesz_energy import optimal_constants_S3, riesz_energies_fused
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  Configuration
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-DATA_FILE = str(FIGURE2_DATA)
+DATA_FILE = str(
+    Path(__file__).resolve().parents[1] / "figures" / "data" / "figure2_anisotropy.json"
+)
 VERSION = "generators.cubochoric_anisotropy v1.0"
 
 # ── Groups to analyse ───────────────────────────────────────────────────────

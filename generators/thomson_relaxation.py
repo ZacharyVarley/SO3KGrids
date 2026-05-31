@@ -53,7 +53,8 @@ from src.covering_radius import covering_radius, covering_radius_star_deg
 from src.riesz_energy import riesz_energies_fused, optimal_constants_S3
 from src.laue_ops import laue_elements, ori_to_fz_laue
 from src.orientation_ops import cu2qu, qu_std
-from repo_paths import FIGURE5_DATA, FIGURE5_GENERATOR_SETTINGS, FIGURE5_SUMMARY
+from pathlib import Path
+
 from src.thomson_relax import relax_orientations_allpairs, ensure_unit
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
@@ -67,9 +68,14 @@ N_EFF_MAX = 800_000
 CR_EVERY_DEFAULT = 1
 LOG_EVERY_DEFAULT = 10
 MAX_ITERS = 100
-DATA_FILE = str(FIGURE5_DATA)
-SETTINGS_FILE = str(FIGURE5_GENERATOR_SETTINGS)
-SUMMARY_FILE = str(FIGURE5_SUMMARY)
+_ROOT = Path(__file__).resolve().parents[1]
+DATA_FILE = str(_ROOT / "figures" / "data" / "figure5_thomson_relaxation.npz")
+SETTINGS_FILE = str(
+    _ROOT / "figures" / "settings" / "thomson_relaxation_generator.json"
+)
+SUMMARY_FILE = str(
+    _ROOT / "figures" / "data" / "figure5_thomson_relaxation_summary.json"
+)
 DPI = 300
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

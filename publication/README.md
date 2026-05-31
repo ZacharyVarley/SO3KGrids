@@ -9,6 +9,7 @@
   - `figures/data/figure3_witness_nn.npz`, `figures/data/figure3_self_nn.npz`
   - `figures/data/figure4_grid_methods.npz`
   - `figures/data/figure5_thomson_relaxation.npz`
+  - `figures/data/figure13_so3_sampling_methods.npz`
 - Layout JSON in `figures/settings/`
 - LaTeX on `PATH` (`text.usetex=True`)
 - Poppler `pdftops` on `PATH` for EPS conversion
@@ -30,7 +31,8 @@ Optional: `--only 1 4 6` or `--out-dir /path/to/output`.
 | `1` | SO(3)/T rejection vs KR |
 | `2` | Cubochoric anisotropy panels |
 | `3` | Witness and self-NN CDFs |
-| `4` | Grid-method comparison panels |
+| `4` | Grid-method comparison panels (Laue-family KR) |
+| `13` | Deterministic SO(3) sampler benchmark |
 | `5` | Thomson relaxation panels |
 | `6` | Laue O primitive-vs-FCC KR panel |
 
@@ -63,6 +65,8 @@ Default output directory: `paper_figures/`
 | `10_thomson_e3_ratio_vs_iter` | Thomson $E_3/E_3^*$ vs iteration |
 | `11_covering_radius_vs_iter` | Covering radius vs iteration |
 | `12_laue_o_pc_vs_fcc_kr_grids` | Laue O primitive vs FCC KR |
+| `13_so3_sampling_e3_ratio_vs_ns3` | SO(3) sampler $E_3/E_3^*$ |
+| `14_so3_sampling_cr_excess_vs_ns3` | SO(3) sampler covering-radius excess (legend on panel) |
 
 ## EPS note
 

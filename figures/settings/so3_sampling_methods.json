@@ -1,0 +1,18 @@
+{
+  "label_size": 7.5,
+  "tick_size": 6.5,
+  "minor_tick_size": 5.5,
+  "legend_size": 6.5,
+  "lw": 1.0,
+  "marker_size": 4.0,
+  "show_grid": true,
+  "grid_alpha": 0.2,
+  "show_minor_tick_labels": false,
+  "show": {
+    "Hopf": true,
+    "HArDiSh": true,
+    "Cubochoric": true,
+    "super-Fibonacci": true,
+    "FCC KR": true
+  }
+}

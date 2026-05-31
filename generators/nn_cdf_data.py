@@ -26,12 +26,13 @@ from src.grid_FZ import cu_kr_grid, cu_rej_grid
 from src.laue_ops import laue_elements
 from src.laue_ops import ori_in_fz_laue
 from src.orientation_ops import qu_prod, qu_std
-from repo_paths import FIGURE3_SELF_NN_DATA, FIGURE3_WITNESS_DATA
+from pathlib import Path
+
 from src.riesz_energy import laue_cross_nn_chordal_fused, riesz_energies_fused
 
-
-WITNESS_DATA_FILE = str(FIGURE3_WITNESS_DATA)
-SELF_NN_DATA_FILE = str(FIGURE3_SELF_NN_DATA)
+_DATA = Path(__file__).resolve().parents[1] / "figures" / "data"
+WITNESS_DATA_FILE = str(_DATA / "figure3_witness_nn.npz")
+SELF_NN_DATA_FILE = str(_DATA / "figure3_self_nn.npz")
 HIST_BINS_WITNESS = 10_000
 HIST_BINS_SELF_NN = 10_000
 MAX_WITNESS_FILTER_BATCH = 10_000_000

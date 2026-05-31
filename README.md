@@ -59,7 +59,7 @@ python -m publication.export_figures            # all twelve panels
 python -m publication.export_figures --only 1 4 # a subset
 ```
 
-Outputs land in [paper_figures/](paper_figures/) as PNG, PDF, and true vector EPS (rendered from the TeX PDF via Poppler `pdftops`, not raster-wrapped). Layout details are in [publication/README.md](publication/README.md).
+Outputs land in [paper_figures/](paper_figures/) as PNG, PDF, and native vector EPS. Layout details are in [publication/README.md](publication/README.md).
 
 Cached data behind the figures can be rebuilt from scratch:
 

@@ -357,44 +357,56 @@ def export_paper_figure(
 ) -> None:
     """Save figure assets for paper export (PNG + EPS + PDF by default).
 
-    EPS is produced from the usetex vector PDF via Poppler ``pdftops -eps``.
-    Matplotlib's direct EPS path with ``text.usetex=True`` rasterizes through
-    Ghostscript; do not pass a high *dpi* to EPS.
+  Vector workflow:
+    1. Write PDF first (never pass *dpi* — keeps lines/text as vector objects).
+    2. Write PNG at *dpi* for raster preview/submission copies.
+    3. Derive EPS from the PDF via Poppler ``pdftops -eps``.
+
+  PNG must not be written before PDF: on recent Matplotlib, a high-dpi raster
+  ``savefig`` can leave the figure in a state where the subsequent PDF export
+  embeds bitmaps instead of true vector artwork.
     """
     save_kw = dict(bbox_inches="tight", facecolor="white", edgecolor="none")
     want_eps = "eps" in formats
     want_pdf = "pdf" in formats
-    pdf_path = Path(f"{stem}.pdf")
+    want_png = "png" in formats
+    other_formats = tuple(f for f in formats if f not in ("png", "eps", "pdf"))
+
+    stem_path = Path(stem)
+    pdf_path = stem_path.with_suffix(".pdf")
     temp_pdf: tempfile.NamedTemporaryFile[str] | None = None
 
     if want_eps and not want_pdf:
         temp_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-        pdf_for_eps = Path(temp_pdf.name)
+        pdf_for_vector = Path(temp_pdf.name)
     else:
-        pdf_for_eps = pdf_path
+        pdf_for_vector = pdf_path
 
-    for ext in formats:
-        path = f"{stem}.{ext}"
-        if ext == "png":
-            fig.savefig(path, format="png", dpi=dpi, **save_kw)
-            print(f"[paper export] {path}")
-        elif ext == "pdf":
-            fig.savefig(path, format="pdf", **save_kw)
-            print(f"[paper export] {path}")
-        elif ext == "eps":
-            continue
-        else:
-            fig.savefig(path, format=ext, **({**save_kw, "dpi": dpi} if ext != "svg" else save_kw))
-            print(f"[paper export] {path}")
+    if want_pdf or want_eps:
+        fig.savefig(pdf_for_vector, format="pdf", **save_kw)
+        if want_pdf:
+            print(f"[paper export] {pdf_path}")
+
+    if want_png:
+        png_path = stem_path.with_suffix(".png")
+        fig.savefig(png_path, format="png", dpi=dpi, **save_kw)
+        print(f"[paper export] {png_path}")
+
+    for ext in other_formats:
+        path = stem_path.with_suffix(f".{ext}")
+        fig.savefig(
+            path,
+            format=ext,
+            **({**save_kw, "dpi": dpi} if ext != "svg" else save_kw),
+        )
+        print(f"[paper export] {path}")
 
     if want_eps:
-        if not want_pdf:
-            fig.savefig(pdf_for_eps, format="pdf", **save_kw)
-        eps_path = Path(f"{stem}.eps")
-        pdf_to_eps(pdf_for_eps, eps_path)
+        eps_path = stem_path.with_suffix(".eps")
+        pdf_to_eps(pdf_for_vector, eps_path)
         print(f"[paper export] {eps_path}")
         if temp_pdf is not None:
-            pdf_for_eps.unlink(missing_ok=True)
+            pdf_for_vector.unlink(missing_ok=True)
             temp_pdf.close()
 
 

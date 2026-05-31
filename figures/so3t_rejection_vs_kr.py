@@ -914,7 +914,7 @@ class FigureInteractive:
         self._draw_fz_edges(self.axL, back_l, zorder=z_back)
         self._draw_fz_edges(self.axR, back_r, zorder=z_back)
 
-        # scatter
+        # scatter (vector in paper export; rasterized for interactive redraw speed)
         kw = dict(
             cmap=self.cmap,
             norm=norm,
@@ -922,7 +922,7 @@ class FigureInteractive:
             s=s.point_size,
             edgecolors="none",
             depthshade=False,
-            rasterized=True,
+            rasterized=not bool(getattr(self, "_exporting_tex", False)),
             zorder=z_points,
         )
         if rf_rej_f.shape[0]:

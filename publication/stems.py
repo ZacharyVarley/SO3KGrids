@@ -18,6 +18,10 @@ CUZ_STAR_VS_CUXY = "03_cuz_star_vs_cuxy"
 WITNESS_NN_CDF = "04_witness_nn_cdf"
 SELF_NN_CDF = "05_self_nn_cdf"
 
+# Deterministic SO(3) sampler benchmark
+SO3_SAMPLING_E3_RATIO = "13_so3_sampling_e3_ratio_vs_ns3"
+SO3_SAMPLING_CR_EXCESS = "14_so3_sampling_cr_excess_vs_ns3"
+
 # Grid-method comparison on SO(3)/K (formerly figure 4)
 E3_RATIO_GRID_METHODS = "06_e3_ratio_grid_methods"
 CR_RATIO_GRID_METHODS = "07_cr_ratio_grid_methods"
@@ -34,6 +38,8 @@ ALL_STEMS_IN_ORDER: tuple[str, ...] = (
     CUZ_STAR_VS_CUXY,
     WITNESS_NN_CDF,
     SELF_NN_CDF,
+    SO3_SAMPLING_E3_RATIO,
+    SO3_SAMPLING_CR_EXCESS,
     E3_RATIO_GRID_METHODS,
     CR_RATIO_GRID_METHODS,
     GRID_METHODS_LEGEND,

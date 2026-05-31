@@ -64,8 +64,10 @@ FIGURE3_SETTINGS = _FIGURE_SETTINGS_DIR / "nn_cdf_overlays.json"
 FIGURE4_SETTINGS = _FIGURE_SETTINGS_DIR / "grid_method_comparison.json"
 FIGURE5_SETTINGS = _FIGURE_SETTINGS_DIR / "thomson_relaxation.json"
 FIGURE6_SETTINGS = _FIGURE_SETTINGS_DIR / "laue_o_pc_vs_fcc.json"
+FIGURE13_SETTINGS = _FIGURE_SETTINGS_DIR / "so3_sampling_methods.json"
 FIGURE3_WITNESS_DATA = _FIGURE_DATA_DIR / "figure3_witness_nn.npz"
 FIGURE3_SELF_NN_DATA = _FIGURE_DATA_DIR / "figure3_self_nn.npz"
+FIGURE13_DATA = _FIGURE_DATA_DIR / "figure13_so3_sampling_methods.npz"
 
 # Reference layouts for scaling 3D scatter sizes to full-page width.
 _FIG1_REF_WIDTH_IN = 12.8
@@ -87,6 +89,7 @@ SETTINGS = {
     4: str(FIGURE4_SETTINGS),
     5: str(FIGURE5_SETTINGS),
     6: str(FIGURE6_SETTINGS),
+    13: str(FIGURE13_SETTINGS),
 }
 
 
@@ -471,6 +474,45 @@ def export_laue_o_pc_vs_fcc_kr(out_dir: str) -> list[str]:
     return stems_out
 
 
+def export_so3_sampling_methods(out_dir: str) -> list[str]:
+    """Deterministic SO(3) sampler benchmark (E3 and CR panels; legend on CR)."""
+    from figures import so3_sampling_methods as f13
+
+    if not FIGURE13_DATA.exists():
+        raise FileNotFoundError(
+            f"{FIGURE13_DATA} not found — run "
+            "`python -m generators.so3_sampling_benchmark --pack-only`."
+        )
+    f13.load_col_settings(SETTINGS[13])
+    fonts = paper_font_sizes()
+    f13.LABEL_SIZE = fonts["label"]
+    f13.TICK_SIZE = fonts["tick"]
+    f13.MINOR_TICK_SIZE = fonts["minor_tick"]
+    f13.LEGEND_SIZE = fonts["legend"]
+    f13.LW = _ARTWORK["line_lw"]
+    f13.MARKER_SIZE = _ARTWORK["marker_size"]
+
+    results = f13.load_data()
+    visible = [n for n in f13.METHOD_ORDER if n in results and f13.SHOW.get(n, True)]
+
+    stems_out = []
+    with plt.rc_context({"text.usetex": True}):
+        fig, ax = _single_panel_axes()
+        f13.draw_e3_panel(ax, results, visible)
+        stem = _stem(out_dir, stems.SO3_SAMPLING_E3_RATIO)
+        export_paper_figure(fig, stem, dpi=PAPER_DPI)
+        stems_out.append(stem)
+        plt.close(fig)
+
+        fig, ax = _single_panel_axes()
+        f13.draw_cr_panel(ax, results, visible)
+        stem = _stem(out_dir, stems.SO3_SAMPLING_CR_EXCESS)
+        export_paper_figure(fig, stem, dpi=PAPER_DPI)
+        stems_out.append(stem)
+        plt.close(fig)
+    return stems_out
+
+
 _EXPORTERS = {
     1: ("SO(3)/T rejection vs KR", export_so3t_rejection_kr),
     2: ("Cubochoric axial anisotropy", export_cubochoric_anisotropy),
@@ -478,6 +520,7 @@ _EXPORTERS = {
     4: ("Grid-method comparison", export_grid_method_comparison),
     5: ("Thomson relaxation", export_thomson_relaxation),
     6: ("Laue O PC vs FCC KR", export_laue_o_pc_vs_fcc_kr),
+    13: ("SO(3) sampler benchmark", export_so3_sampling_methods),
 }
 
 
@@ -491,7 +534,7 @@ def main(argv: list[str] | None = None) -> int:
         nargs="+",
         choices=sorted(_EXPORTERS),
         metavar="N",
-        help="Export subset: 1=SO(3)/T, 2=anisotropy, 3=CDFs, 4=grids, 5=Thomson, 6=PC/FCC",
+        help="Export subset: 1=SO(3)/T, 2=anisotropy, 3=CDFs, 4=grids, 5=Thomson, 6=PC/FCC, 13=SO(3) samplers",
     )
     parser.add_argument("--out-dir", default=_DEFAULT_OUT_DIR)
     args = parser.parse_args(argv)
