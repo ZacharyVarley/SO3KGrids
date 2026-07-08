@@ -224,7 +224,12 @@ __marimo__/
 /figure*.gif
 /test_*.pdf
 /test_*.png
+
 # Keep the stereogram MP4 (referenced from README appendix).
 !/assets/stereogram_so3_o.mp4
+
 # In paper_figures/ keep PNG and PDF outputs; regenerate EPS as needed.
 paper_figures/*.eps
+
+# ~500 MB of grid data
+figures/data/so3_sampling_benchmark/grids/
